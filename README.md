@@ -77,3 +77,149 @@ Commands ran on the `kfkclient` host
 ```bash
 kafka-topics --bootstrap-server <broker>:<port> --command-config /opt/client/client.properties --list
 ```
+
+##**Solution**
+
+
+
+**1. Regenerate certificates: **
+
+```
+Steps to Set Up Kafka with New Certificates 
+
+Clean Up Old Files 
+
+Clean Up Old Files in ~/scenario_3/cp-sandbox/certs: 
+
+cd cp-sandbox/certs 
+rm -f ca-key ca-cert cert-signed-1 cert-signed-2 cert-signed-3 cert-file-1 cert-file-2 cert-file-3 ca-cert.srl 
+ 
+
+Clean Up Old Files in Each Broker Directory: 
+
+Assuming that the Kafka broker directories (kafka1, kafka2, kafka3) are inside ~/scenario_3/cp-sandbox/, execute the following: 
+
+# For kafka1 
+cd ../kafka1 
+rm -f kafka.server.truststore.jks kafka.server.keystore.jks 
+ 
+# For kafka2 
+cd ../kafka2 
+rm -f kafka.server.truststore.jks kafka.server.keystore.jks 
+ 
+# For kafka3 
+cd ../kafka3 
+rm -f kafka.server.truststore.jks kafka.server.keystore.jks 
+ 
+
+ 
+
+Create New Certificates for the CA 
+
+Run the following commands in the ~/scenario_3/cp-sandbox/certs directory: 
+
+cd ../certs 
+ 
+# Step 1: Create a new Root CA 
+openssl req -new -x509 -days 365 -keyout ca-key -out ca-cert -subj "/C=DE/ST=NRW/L=MS/O=juplo/OU=kafka/CN=Root-CA" -passout pass:kafka-broker 
+ 
+
+ 
+
+Create Truststore for Each Kafka Broker 
+
+Now, import the CA certificate into the truststore for each broker: 
+
+# For kafka1 
+keytool -keystore ../kafka1/kafka.server.truststore.jks -storepass kafka-broker -import -alias ca-root -file ca-cert -noprompt 
+ 
+# For kafka2 
+keytool -keystore ../kafka2/kafka.server.truststore.jks -storepass kafka-broker -import -alias ca-root -file ca-cert -noprompt 
+ 
+# For kafka3 
+keytool -keystore ../kafka3/kafka.server.truststore.jks -storepass kafka-broker -import -alias ca-root -file ca-cert -noprompt 
+ 
+
+ 
+
+Generate Keystores and Certificates for Each Broker 
+
+For kafka1: 
+
+# Step 3: Generate a Key Pair for kafka1 
+keytool -keystore ../kafka1/kafka.server.keystore.jks -storepass kafka-broker -alias kafka1 -validity 365 -keyalg RSA -genkeypair -keypass kafka-broker -dname "CN=kafka1,OU=kafka,O=juplo,L=MS,ST=NRW,C=DE" 
+ 
+# Step 4: Create a CSR for kafka1 
+keytool -alias kafka1 -keystore ../kafka1/kafka.server.keystore.jks -certreq -file cert-file-1 -storepass kafka-broker -keypass kafka-broker 
+ 
+# Step 5: Sign the CSR with the CA 
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file-1 -out cert-signed-1 -days 365 -CAcreateserial -passin pass:kafka-broker -extensions SAN -extfile <(printf "\n[SAN]\nsubjectAltName=DNS:kafka1,DNS:localhost") 
+ 
+# Step 6: Import the CA Certificate into the Keystore 
+keytool -importcert -keystore ../kafka1/kafka.server.keystore.jks -alias ca-root -file ca-cert -storepass kafka-broker -keypass kafka-broker -noprompt 
+ 
+# Step 7: Import the Signed Certificate into the Keystore 
+keytool -keystore ../kafka1/kafka.server.keystore.jks -alias kafka1 -import -file cert-signed-1 -storepass kafka-broker -keypass kafka-broker -noprompt 
+ 
+
+For kafka2: 
+
+# Step 3: Generate a Key Pair for kafka2 
+keytool -keystore ../kafka2/kafka.server.keystore.jks -storepass kafka-broker -alias kafka2 -validity 365 -keyalg RSA -genkeypair -keypass kafka-broker -dname "CN=kafka2,OU=kafka,O=juplo,L=MS,ST=NRW,C=DE" 
+ 
+# Step 4: Create a CSR for kafka2 
+keytool -alias kafka2 -keystore ../kafka2/kafka.server.keystore.jks -certreq -file cert-file-2 -storepass kafka-broker -keypass kafka-broker 
+ 
+# Step 5: Sign the CSR with the CA 
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file-2 -out cert-signed-2 -days 365 -CAcreateserial -passin pass:kafka-broker -extensions SAN -extfile <(printf "\n[SAN]\nsubjectAltName=DNS:kafka2,DNS:localhost") 
+ 
+# Step 6: Import the CA Certificate into the Keystore 
+keytool -importcert -keystore ../kafka2/kafka.server.keystore.jks -alias ca-root -file ca-cert -storepass kafka-broker -keypass kafka-broker -noprompt 
+ 
+# Step 7: Import the Signed Certificate into the Keystore 
+keytool -keystore ../kafka2/kafka.server.keystore.jks -alias kafka2 -import -file cert-signed-2 -storepass kafka-broker -keypass kafka-broker -noprompt 
+ 
+
+For kafka3: 
+
+# Step 3: Generate a Key Pair for kafka3 
+keytool -keystore ../kafka3/kafka.server.keystore.jks -storepass kafka-broker -alias kafka3 -validity 365 -keyalg RSA -genkeypair -keypass kafka-broker -dname "CN=kafka3,OU=kafka,O=juplo,L=MS,ST=NRW,C=DE" 
+ 
+# Step 4: Create a CSR for kafka3 
+keytool -alias kafka3 -keystore ../kafka3/kafka.server.keystore.jks -certreq -file cert-file-3 -storepass kafka-broker -keypass kafka-broker 
+ 
+# Step 5: Sign the CSR with the CA 
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file-3 -out cert-signed-3 -days 365 -CAcreateserial -passin pass:kafka-broker -extensions SAN -extfile <(printf "\n[SAN]\nsubjectAltName=DNS:kafka3,DNS:localhost") 
+ 
+# Step 6: Import the CA Certificate into the Keystore 
+keytool -importcert -keystore ../kafka3/kafka.server.keystore.jks -alias ca-root -file ca-cert -storepass kafka-broker -keypass kafka-broker -noprompt 
+ 
+# Step 7: Import the Signed Certificate into the Keystore 
+keytool -keystore ../kafka3/kafka.server.keystore.jks -alias kafka3 -import -file cert-signed-3 -storepass kafka-broker -keypass kafka-broker -noprompt 
+ 
+
+ 
+```
+![image](https://github.com/user-attachments/assets/1e99bc39-4289-4074-b85a-f4b8cd6d03df)
+
+
+Password corrected to bob-secret 
+
+ 
+```
+Incorrect (old) line: 
+ 
+    user_bob="b0b-secret" 
+ 
+Correct (new) line: 
+ 
+    user_bob="bob-secret" 
+
+ ```
+Restart docker service:
+
+![image](https://github.com/user-attachments/assets/a84c4afb-2772-475e-83a4-5c60ce1b019a)
+
+![image](https://github.com/user-attachments/assets/755c67fe-366f-4330-bc5f-31490b1312b0)
+
+
